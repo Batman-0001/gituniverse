@@ -20,17 +20,17 @@ export default function StarfieldCanvas() {
 
     const initStars = useCallback((width: number, height: number) => {
         const stars: Star[] = [];
-        const count = Math.min(800, Math.floor((width * height) / 2000));
+        const count = Math.min(100, Math.floor((width * height) / 20000));
 
         for (let i = 0; i < count; i++) {
             stars.push({
                 x: Math.random() * width,
                 y: Math.random() * height,
                 z: Math.random() * 3 + 0.5,
-                size: Math.random() * 2 + 0.3,
-                opacity: Math.random() * 0.8 + 0.2,
-                speed: Math.random() * 0.3 + 0.05,
-                hue: Math.random() > 0.85 ? Math.random() * 60 + 200 : 0,
+                size: Math.random() * 1.0 + 0.2,
+                opacity: Math.random() * 0.4 + 0.1,
+                speed: 0,
+                hue: 0,
             });
         }
         starsRef.current = stars;
@@ -56,10 +56,7 @@ export default function StarfieldCanvas() {
         };
         window.addEventListener("mousemove", handleMouse);
 
-        let time = 0;
-
         const animate = () => {
-            time += 0.01;
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
             for (const star of starsRef.current) {
@@ -70,42 +67,13 @@ export default function StarfieldCanvas() {
                 const x = star.x + parallaxX;
                 const y = star.y + parallaxY;
 
-                // Twinkling
-                const twinkle = Math.sin(time * star.speed * 10 + star.x) * 0.3 + 0.7;
-                const alpha = star.opacity * twinkle;
+                // Static — no twinkling
+                const alpha = star.opacity;
 
                 ctx.beginPath();
-
-                if (star.hue > 0) {
-                    // Colored stars (blue-ish)
-                    ctx.fillStyle = `hsla(${star.hue}, 80%, 75%, ${alpha})`;
-                    ctx.shadowColor = `hsla(${star.hue}, 80%, 75%, ${alpha * 0.5})`;
-                    ctx.shadowBlur = star.size * 4;
-                } else {
-                    ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
-                    ctx.shadowColor = `rgba(255, 255, 255, ${alpha * 0.3})`;
-                    ctx.shadowBlur = star.size * 2;
-                }
-
-                ctx.arc(x, y, star.size * star.z * 0.5, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+                ctx.arc(x, y, star.size * star.z * 0.4, 0, Math.PI * 2);
                 ctx.fill();
-                ctx.shadowBlur = 0;
-            }
-
-            // Draw subtle nebula blobs
-            const nebulaCount = 3;
-            for (let i = 0; i < nebulaCount; i++) {
-                const nx = canvas.width * (0.2 + i * 0.3) + Math.sin(time * 0.2 + i) * 50;
-                const ny = canvas.height * (0.3 + i * 0.15) + Math.cos(time * 0.15 + i * 2) * 30;
-                const gradient = ctx.createRadialGradient(nx, ny, 0, nx, ny, 200);
-
-                const hue = [260, 200, 320][i];
-                gradient.addColorStop(0, `hsla(${hue}, 60%, 30%, 0.05)`);
-                gradient.addColorStop(0.5, `hsla(${hue}, 50%, 20%, 0.02)`);
-                gradient.addColorStop(1, "transparent");
-
-                ctx.fillStyle = gradient;
-                ctx.fillRect(nx - 200, ny - 200, 400, 400);
             }
 
             animationRef.current = requestAnimationFrame(animate);

@@ -30,10 +30,10 @@ function classifyStellarType(
     normalizedMass: number
 ): IDeveloper["stellarType"] {
     if (!isActive) return "white_dwarf";
-    if (longevityDays < 180) return "blue_giant"; // New, hot star
     if (normalizedMass > 75) return "red_giant"; // Massive, dominant
-    if (longevityDays > 365) return "orange_dwarf"; // Veteran
-    return "yellow_sun"; // Standard
+    if (normalizedMass > 50 && longevityDays > 365) return "orange_dwarf"; // Veteran heavy-hitter
+    if (longevityDays > 500 && normalizedMass < 25) return "blue_giant"; // Long-lived low-mass
+    return "yellow_sun"; // Default: warm sun-like star
 }
 
 // ─── Raw Mass Computation ────────────────────────────────────────────────────

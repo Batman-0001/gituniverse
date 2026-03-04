@@ -176,7 +176,7 @@ export async function ingestRepository(
     }
 
     // Create or update repository record
-    let repository = await Repository.findOneAndUpdate(
+    const repository = await Repository.findOneAndUpdate(
         { fullName },
         {
             name: repoName,
@@ -200,7 +200,6 @@ export async function ingestRepository(
 
         const log: LogResult<DefaultLogFields> = await git.log({
             "--all": null,
-            "--stat": null,
             "--numstat": null,
             maxCount: 50000,
         });
