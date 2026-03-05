@@ -1,13 +1,12 @@
 /**
- * Galaxy Nebula Component
+ * Galaxy Nebula Component — Cinematic Rewrite
  *
- * Renders each galaxy/service as a SUBTLE volumetric hint — not a solid ball.
- *
- * Design philosophy:
- * - Nebulae should be barely visible at the universe level — they're "background context"
- * - They should be translucent wisps of color, not opaque solids
- * - The dust particles are the main visual; the shell is just a faint tint
- * - Labels are minimal and don't compete with developer stars
+ * Renders each galaxy/service as a beautiful cosmic nebula:
+ * 1. Spiral arm particle pattern (not random scatter)
+ * 2. Glowing volumetric shell with animated rotation
+ * 3. Dense star cluster particles in the core
+ * 4. Subtle color-shifting dust
+ * 5. Clear, readable labels
  */
 
 "use client";
@@ -32,91 +31,164 @@ function seededRandom(seed: number) {
     };
 }
 
-const dustGeo = new THREE.SphereGeometry(1, 3, 3);
-const DUST_PER_GALAXY = 25;
+// ─── Spiral Arm Particle Generator ──────────────────────────────────────────
+
+function generateSpiralParticles(
+    galaxy: SpatialGalaxy,
+    count: number,
+    seed: number
+) {
+    const rng = seededRandom(seed);
+    const particles: Array<{
+        x: number; y: number; z: number;
+        size: number; speed: number; phase: number;
+        brightness: number;
+    }> = [];
+
+    const numArms = 2 + Math.floor(rng() * 2); // 2-3 arms
+    const armWidth = 0.4;
+
+    for (let i = 0; i < count; i++) {
+        const armIndex = i % numArms;
+        const armAngle = (armIndex / numArms) * Math.PI * 2;
+
+        // Spiral parameter
+        const t = rng() * 3.0; // distance from center along arm
+        const spiralAngle = armAngle + t * 1.2; // spiral twist
+        const dist = (0.15 + t * 0.28) * galaxy.radius;
+
+        // Scatter around arm
+        const scatter = (rng() - 0.5) * armWidth * dist * 0.5;
+        const yScatter = (rng() - 0.5) * galaxy.radius * 0.15;
+
+        const x = Math.cos(spiralAngle) * dist + scatter * Math.sin(spiralAngle);
+        const z = Math.sin(spiralAngle) * dist - scatter * Math.cos(spiralAngle);
+        const y = yScatter;
+
+        // Core particles are brighter and larger
+        const coreWeight = Math.exp(-t * 1.5);
+
+        particles.push({
+            x, y, z,
+            size: (0.06 + rng() * 0.12) * (1 + coreWeight),
+            speed: 0.02 + rng() * 0.08,
+            phase: rng() * Math.PI * 2,
+            brightness: 0.3 + coreWeight * 0.7,
+        });
+    }
+
+    return particles;
+}
+
+const DUST_PER_GALAXY = 60;
+const dustGeo = new THREE.SphereGeometry(1, 4, 4);
 
 export default function GalaxyNebula({ galaxy }: GalaxyNebulaProps) {
     const shellRef = useRef<THREE.Mesh>(null);
+    const coreRef = useRef<THREE.Mesh>(null);
     const dustMeshRef = useRef<THREE.InstancedMesh>(null);
+    const floatGroupRef = useRef<THREE.Group>(null);
+
+    // Unique seed for per-galaxy float offset so they don't all bob in sync
+    const floatSeed = useMemo(
+        () => galaxy.name.split("").reduce((a, c) => a + c.charCodeAt(0), 0) * 2.3,
+        [galaxy.name]
+    );
 
     const { selectedGalaxyId, selectGalaxy, showLabels } = useUniverseStore();
     const isSelected = selectedGalaxyId === galaxy.id;
 
     const color = useMemo(
-        () => new THREE.Color().setHSL(galaxy.colorHue / 360, 0.25, 0.3),
+        () => new THREE.Color().setHSL(galaxy.colorHue / 360, 0.4, 0.4),
         [galaxy.colorHue]
     );
 
-    // Dust particles — sparse, small, translucent
+    const coreColor = useMemo(
+        () => new THREE.Color().setHSL(galaxy.colorHue / 360, 0.5, 0.6),
+        [galaxy.colorHue]
+    );
+
+    const hashSeed = galaxy.name.split("").reduce((a, c) => a + c.charCodeAt(0), 0);
+
+    // Generate spiral dust particles
     const dustParticles = useMemo(() => {
-        const hashSeed = galaxy.name.split("").reduce((a, c) => a + c.charCodeAt(0), 0);
-        const rng = seededRandom(hashSeed);
-        const particles: Array<{
-            x: number; y: number; z: number;
-            size: number; speed: number; phase: number;
-        }> = [];
-
-        for (let i = 0; i < DUST_PER_GALAXY; i++) {
-            const angle = rng() * Math.PI * 2;
-            const elevation = (rng() - 0.5) * Math.PI * 0.4;
-            const dist = galaxy.radius * (0.3 + rng() * 0.8);
-
-            particles.push({
-                x: Math.cos(angle) * Math.cos(elevation) * dist,
-                y: Math.sin(elevation) * dist * 0.25,
-                z: Math.sin(angle) * Math.cos(elevation) * dist,
-                size: 0.03 + rng() * 0.06,
-                speed: 0.02 + rng() * 0.06,
-                phase: rng() * Math.PI * 2,
-            });
-        }
-        return particles;
-    }, [galaxy.name, galaxy.radius]);
+        return generateSpiralParticles(galaxy, DUST_PER_GALAXY, hashSeed);
+    }, [galaxy, hashSeed]);
 
     const dustColors = useMemo(() => {
         const arr = new Float32Array(DUST_PER_GALAXY * 3);
-        const rng = seededRandom(galaxy.name.length * 42);
+        const rng = seededRandom(hashSeed * 42);
         for (let i = 0; i < DUST_PER_GALAXY; i++) {
             const t = rng();
+            const brightness = dustParticles[i].brightness;
             const c = new THREE.Color().setHSL(
-                (galaxy.colorHue + (t - 0.5) * 20) / 360,
-                0.2 + t * 0.15,
-                0.4 + t * 0.2
+                (galaxy.colorHue + (t - 0.5) * 30) / 360,
+                0.3 + t * 0.2,
+                0.3 + brightness * 0.4
             );
             arr[i * 3] = c.r;
             arr[i * 3 + 1] = c.g;
             arr[i * 3 + 2] = c.b;
         }
         return arr;
-    }, [galaxy.colorHue, galaxy.name]);
+    }, [galaxy.colorHue, hashSeed, dustParticles]);
 
     const dummy = useMemo(() => new THREE.Object3D(), []);
 
     useFrame(({ clock }) => {
         const time = clock.getElapsedTime();
 
-        // Shell: very slow rotation, subtle
+        // Shell: visible rotation
         if (shellRef.current) {
-            shellRef.current.rotation.y = time * 0.005;
+            shellRef.current.rotation.y = time * 0.025;
+            shellRef.current.rotation.x = Math.sin(time * 0.01) * 0.05;
         }
 
-        // Dust: gentle drift
+        // Core: slow pulsing glow
+        if (coreRef.current) {
+            const pulse = Math.sin(time * 0.5) * 0.15 + 1.0;
+            coreRef.current.scale.setScalar(galaxy.radius * 0.4 * pulse);
+            const mat = coreRef.current.material as THREE.MeshBasicMaterial;
+            mat.opacity = (isSelected ? 0.08 : 0.04) * pulse;
+        }
+
+        // Dust particles: orbit around galaxy center
         if (dustMeshRef.current) {
             const mesh = dustMeshRef.current;
             for (let i = 0; i < dustParticles.length; i++) {
                 const p = dustParticles[i];
-                const angle = time * p.speed + p.phase;
+                const angle = time * p.speed * 3.0 + p.phase;
+
+                // Rotate particles around galaxy center
+                const cosA = Math.cos(angle);
+                const sinA = Math.sin(angle);
+                const rx = p.x * cosA - p.z * sinA;
+                const rz = p.x * sinA + p.z * cosA;
 
                 dummy.position.set(
-                    p.x + Math.sin(angle * 0.5) * 0.2,
-                    p.y + Math.sin(angle * 0.8 + p.phase) * 0.1,
-                    p.z + Math.cos(angle * 0.3) * 0.15
+                    rx,
+                    p.y + Math.sin(time * 0.2 + p.phase) * 0.1,
+                    rz
                 );
-                dummy.scale.setScalar(p.size);
+
+                const twinkle = Math.sin(time * 0.8 + p.phase * 3.0) * 0.3 + 0.7;
+                dummy.scale.setScalar(p.size * twinkle);
                 dummy.updateMatrix();
                 mesh.setMatrixAt(i, dummy.matrix);
             }
             mesh.instanceMatrix.needsUpdate = true;
+        }
+
+        // Gentle floating / bobbing motion on the whole galaxy group
+        if (floatGroupRef.current) {
+            const bobY = Math.sin(time * 0.15 + floatSeed) * 0.5;
+            const bobX = Math.cos(time * 0.1 + floatSeed * 1.4) * 0.35;
+            const bobZ = Math.sin(time * 0.12 + floatSeed * 0.8) * 0.35;
+            floatGroupRef.current.position.set(bobX, bobY, bobZ);
+
+            // Very subtle tilt oscillation
+            floatGroupRef.current.rotation.x = Math.sin(time * 0.05 + floatSeed) * 0.008;
+            floatGroupRef.current.rotation.z = Math.cos(time * 0.04 + floatSeed * 1.2) * 0.006;
         }
     });
 
@@ -127,81 +199,96 @@ export default function GalaxyNebula({ galaxy }: GalaxyNebulaProps) {
 
     return (
         <group position={galaxy.position}>
-            {/* Single very faint shell — just a tint, not a solid */}
-            <mesh ref={shellRef} onClick={handleClick}>
-                <sphereGeometry args={[galaxy.radius, 16, 16]} />
-                <meshBasicMaterial
-                    color={color}
-                    transparent
-                    opacity={isSelected ? 0.04 : 0.015}
-                    depthWrite={false}
-                    side={THREE.DoubleSide}
-                />
-            </mesh>
-
-            {/* Sparse dust field */}
-            <instancedMesh
-                ref={dustMeshRef}
-                args={[dustGeo, undefined, DUST_PER_GALAXY]}
-                frustumCulled={false}
-            >
-                <meshBasicMaterial
-                    vertexColors
-                    transparent
-                    opacity={0.25}
-                    depthWrite={false}
-                    blending={THREE.AdditiveBlending}
-                    toneMapped={false}
-                />
-                <instancedBufferAttribute
-                    attach="geometry-attributes-color"
-                    args={[dustColors, 3]}
-                />
-            </instancedMesh>
-
-            {/* Selection ring */}
-            {isSelected && (
-                <mesh rotation={[Math.PI / 2, 0, 0]}>
-                    <ringGeometry args={[galaxy.radius * 1.05, galaxy.radius * 1.08, 48]} />
+            <group ref={floatGroupRef}>
+                {/* Outer shell — volumetric boundary */}
+                <mesh ref={shellRef} onClick={handleClick}>
+                    <sphereGeometry args={[galaxy.radius, 24, 24]} />
                     <meshBasicMaterial
                         color={color}
                         transparent
-                        opacity={0.15}
-                        side={THREE.DoubleSide}
+                        opacity={isSelected ? 0.06 : 0.025}
                         depthWrite={false}
+                        side={THREE.DoubleSide}
                     />
                 </mesh>
-            )}
 
-            {/* Label — minimal, unobtrusive */}
-            {showLabels && (
-                <Billboard follow lockX={false} lockY={false} lockZ={false}>
-                    <Text
-                        position={[0, galaxy.radius + 1.5, 0]}
-                        fontSize={0.8}
-                        color={`hsl(${galaxy.colorHue}, 30%, 55%)`}
-                        anchorX="center"
-                        anchorY="bottom"
-                        outlineWidth={0.03}
-                        outlineColor="#000000"
-                        fillOpacity={isSelected ? 0.8 : 0.3}
-                        letterSpacing={0.08}
-                    >
-                        {galaxy.name.toUpperCase()}
-                    </Text>
-                    {isSelected && (
+                {/* Bright core glow */}
+                <mesh ref={coreRef}>
+                    <sphereGeometry args={[1, 16, 16]} />
+                    <meshBasicMaterial
+                        color={coreColor}
+                        transparent
+                        opacity={0.04}
+                        depthWrite={false}
+                        blending={THREE.AdditiveBlending}
+                    />
+                </mesh>
+
+                {/* Spiral dust particles */}
+                <instancedMesh
+                    ref={dustMeshRef}
+                    args={[dustGeo, undefined, DUST_PER_GALAXY]}
+                    frustumCulled={false}
+                >
+                    <meshBasicMaterial
+                        vertexColors
+                        transparent
+                        opacity={0.45}
+                        depthWrite={false}
+                        blending={THREE.AdditiveBlending}
+                        toneMapped={false}
+                    />
+                    <instancedBufferAttribute
+                        attach="geometry-attributes-color"
+                        args={[dustColors, 3]}
+                    />
+                </instancedMesh>
+
+                {/* Selection ring */}
+                {isSelected && (
+                    <mesh rotation={[Math.PI / 2, 0, 0]}>
+                        <ringGeometry args={[galaxy.radius * 1.05, galaxy.radius * 1.1, 64]} />
+                        <meshBasicMaterial
+                            color={coreColor}
+                            transparent
+                            opacity={0.2}
+                            side={THREE.DoubleSide}
+                            depthWrite={false}
+                            blending={THREE.AdditiveBlending}
+                        />
+                    </mesh>
+                )}
+
+                {/* Label — clear and readable */}
+                {showLabels && (
+                    <Billboard follow lockX={false} lockY={false} lockZ={false}>
                         <Text
-                            position={[0, galaxy.radius + 0.8, 0]}
-                            fontSize={0.4}
-                            color="rgba(255,255,255,0.3)"
+                            position={[0, galaxy.radius + 2.0, 0]}
+                            fontSize={1.0}
+                            color={`hsl(${galaxy.colorHue}, 45%, 65%)`}
                             anchorX="center"
                             anchorY="bottom"
+                            outlineWidth={0.04}
+                            outlineColor="#000000"
+                            fillOpacity={isSelected ? 0.9 : 0.4}
+                            letterSpacing={0.1}
                         >
-                            {`${galaxy.totalFiles} files · ${galaxy.totalDevelopers} devs`}
+                            {galaxy.name.toUpperCase()}
                         </Text>
-                    )}
-                </Billboard>
-            )}
+                        {isSelected && (
+                            <Text
+                                position={[0, galaxy.radius + 1.0, 0]}
+                                fontSize={0.5}
+                                color="rgba(255,255,255,0.4)"
+                                anchorX="center"
+                                anchorY="bottom"
+                            >
+                                {`${galaxy.totalFiles} files · ${galaxy.totalDevelopers} devs`}
+                            </Text>
+                        )}
+                    </Billboard>
+                )}
+            </group>
         </group>
     );
 }

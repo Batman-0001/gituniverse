@@ -60,7 +60,7 @@ export default function CommitPlanets({ planets, developers }: CommitPlanetsProp
             const ref = orbitRefs.current.get(i);
             if (!owner || !ref) continue;
 
-            const angle = planet.orbitAngle + time * planet.orbitSpeed * 0.2;
+            const angle = planet.orbitAngle + time * planet.orbitSpeed * 0.8;
             const cosAngle = Math.cos(angle);
             const sinAngle = Math.sin(angle);
             const cosInc = Math.cos(planet.orbitInclination);

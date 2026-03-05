@@ -1,9 +1,12 @@
 /**
- * Event Particles Component
+ * Event Particles Component — Cinematic Rewrite
  *
- * Very subtle ambient particle markers at event locations.
- * These are tiny, sparse dots that hint at history — not fireworks.
- * Reduced count, smaller size, lower opacity.
+ * Renders historical events as dramatic particle effects:
+ * 1. More particles per event (15 instead of 8)
+ * 2. Animated expanding/contracting motion
+ * 3. Brighter, more visible with additive glow
+ * 4. Color-coded by event type with stronger contrast
+ * 5. Subtle orbital motion around event source
  */
 
 "use client";
@@ -19,8 +22,8 @@ interface EventParticlesProps {
     developers: Map<string, SpatialDeveloper>;
 }
 
-const PARTICLES_PER_EVENT = 8;
-const particleGeometry = new THREE.SphereGeometry(1, 3, 3);
+const PARTICLES_PER_EVENT = 15;
+const particleGeometry = new THREE.SphereGeometry(1, 5, 5);
 
 function mulberry32(seed: number) {
     return () => {
@@ -41,14 +44,14 @@ function hashStr(s: string): number {
 }
 
 const EVENT_COLORS: Record<string, { primary: string; secondary: string }> = {
-    STAR_BIRTH: { primary: "#c9a84c", secondary: "#e8d5a0" },
-    SUPERNOVA: { primary: "#a03030", secondary: "#cc6644" },
-    WHITE_DWARF: { primary: "#6a7a88", secondary: "#8a9aaa" },
-    BINARY_FORMATION: { primary: "#8a6a9a", secondary: "#b090c0" },
-    GALAXY_SPLIT: { primary: "#4a8a8a", secondary: "#6aaa9a" },
-    GALAXY_MERGE: { primary: "#5a4a8a", secondary: "#8a7aaa" },
-    DEBT_CLEARANCE: { primary: "#5a8a5a", secondary: "#7aaa7a" },
-    BUS_FACTOR_ALERT: { primary: "#a04040", secondary: "#cc6666" },
+    STAR_BIRTH: { primary: "#ffd700", secondary: "#ffec80" },
+    SUPERNOVA: { primary: "#ff3300", secondary: "#ff8855" },
+    WHITE_DWARF: { primary: "#7799cc", secondary: "#aabbdd" },
+    BINARY_FORMATION: { primary: "#bb66dd", secondary: "#dd99ff" },
+    GALAXY_SPLIT: { primary: "#00ccaa", secondary: "#55eedd" },
+    GALAXY_MERGE: { primary: "#7755cc", secondary: "#aa88ee" },
+    DEBT_CLEARANCE: { primary: "#44cc44", secondary: "#88ee88" },
+    BUS_FACTOR_ALERT: { primary: "#ff4444", secondary: "#ff8888" },
 };
 
 export default function EventParticles({ events, developers }: EventParticlesProps) {
@@ -70,8 +73,9 @@ export default function EventParticles({ events, developers }: EventParticlesPro
                 center,
                 color: new THREE.Color(colors.primary),
                 secondaryColor: new THREE.Color(colors.secondary),
-                baseRadius: Math.min(event.magnitude * 0.8 + 1, 3),
+                baseRadius: Math.min(event.magnitude * 1.0 + 1.5, 4),
                 seed: hashStr(event.id),
+                eventType: event.eventType,
             };
         });
     }, [events, developers]);
@@ -85,25 +89,27 @@ export default function EventParticles({ events, developers }: EventParticlesPro
             phase: number;
             radius: number;
             effectIndex: number;
+            orbitSpeed: number;
         }> = [];
 
         effects.forEach((effect, effectIndex) => {
             const rng = mulberry32(effect.seed);
             for (let i = 0; i < PARTICLES_PER_EVENT; i++) {
                 const angle = rng() * Math.PI * 2;
-                const elevation = (rng() - 0.5) * Math.PI * 0.4;
-                const dist = effect.baseRadius * (0.4 + rng() * 0.6);
+                const elevation = (rng() - 0.5) * Math.PI * 0.5;
+                const dist = effect.baseRadius * (0.3 + rng() * 0.7);
 
                 data.push({
                     offset: new THREE.Vector3(
                         Math.cos(angle) * Math.cos(elevation) * dist,
-                        Math.sin(elevation) * dist * 0.3,
+                        Math.sin(elevation) * dist * 0.4,
                         Math.sin(angle) * Math.cos(elevation) * dist
                     ),
-                    speed: 0.1 + rng() * 0.3,
+                    speed: 0.15 + rng() * 0.4,
                     phase: rng() * Math.PI * 2,
-                    radius: 0.015 + rng() * 0.025,
+                    radius: 0.02 + rng() * 0.04,
                     effectIndex,
+                    orbitSpeed: 0.3 + rng() * 0.5,
                 });
             }
         });
@@ -115,10 +121,10 @@ export default function EventParticles({ events, developers }: EventParticlesPro
         const arr = new Float32Array(totalParticles * 3);
         particleData.forEach((p, i) => {
             const effect = effects[p.effectIndex];
-            const color = i % 2 === 0 ? effect.color : effect.secondaryColor;
-            arr[i * 3] = color.r;
-            arr[i * 3 + 1] = color.g;
-            arr[i * 3 + 2] = color.b;
+            const color = i % 3 === 0 ? effect.secondaryColor : effect.color;
+            arr[i * 3] = color.r * 1.5;
+            arr[i * 3 + 1] = color.g * 1.5;
+            arr[i * 3 + 2] = color.b * 1.5;
         });
         return arr;
     }, [particleData, effects, totalParticles]);
@@ -132,13 +138,26 @@ export default function EventParticles({ events, developers }: EventParticlesPro
             const p = particleData[i];
             const effect = effects[p.effectIndex];
 
-            const angle = time * p.speed + p.phase;
-            const x = effect.center.x + p.offset.x * Math.cos(angle) - p.offset.z * Math.sin(angle);
-            const y = effect.center.y + p.offset.y;
-            const z = effect.center.z + p.offset.x * Math.sin(angle) + p.offset.z * Math.cos(angle);
+            // Orbital motion + breathing expansion
+            const orbit = time * p.orbitSpeed + p.phase;
+            const breathe = Math.sin(time * 0.5 + p.phase) * 0.2 + 1.0;
+
+            const ox = p.offset.x * breathe;
+            const oy = p.offset.y;
+            const oz = p.offset.z * breathe;
+
+            const cosO = Math.cos(orbit);
+            const sinO = Math.sin(orbit);
+
+            const x = effect.center.x + ox * cosO - oz * sinO;
+            const y = effect.center.y + oy + Math.sin(time * p.speed + p.phase) * 0.15;
+            const z = effect.center.z + ox * sinO + oz * cosO;
+
+            // Pulsing size
+            const pulse = Math.sin(time * 1.5 + p.phase * 2.0) * 0.3 + 0.7;
 
             dummy.position.set(x, y, z);
-            dummy.scale.setScalar(p.radius);
+            dummy.scale.setScalar(p.radius * pulse);
             dummy.updateMatrix();
             mesh.setMatrixAt(i, dummy.matrix);
         }
@@ -156,7 +175,7 @@ export default function EventParticles({ events, developers }: EventParticlesPro
             <meshBasicMaterial
                 vertexColors
                 transparent
-                opacity={0.3}
+                opacity={0.6}
                 depthWrite={false}
                 blending={THREE.AdditiveBlending}
                 toneMapped={false}

@@ -14,8 +14,8 @@ import * as THREE from "three";
 
 const GALAXY_SPREAD = 80;
 const DEVELOPER_SPREAD = 15;
-const PLANET_ORBIT_MIN = 3.0;
-const PLANET_ORBIT_MAX = 12.0;
+const PLANET_ORBIT_MIN = 4.0;
+const PLANET_ORBIT_MAX = 16.0;
 const UNASSIGNED_RING_RADIUS = 120;
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -211,7 +211,7 @@ function positionDevelopers(
                 galaxy.position.z + r * Math.sin(theta)
             );
 
-            const radius = Math.max(0.35, Math.cbrt(dev.normalizedMass) * 0.25);
+            const radius = Math.max(0.5, Math.cbrt(dev.normalizedMass) * 0.35);
 
             spatialDevelopers.push({
                 id: dev._id,
@@ -244,7 +244,7 @@ function positionDevelopers(
             r * Math.sin(angle)
         );
 
-        const radius = Math.max(0.35, Math.cbrt(dev.normalizedMass) * 0.25);
+        const radius = Math.max(0.5, Math.cbrt(dev.normalizedMass) * 0.35);
 
         spatialDevelopers.push({
             id: dev._id,
@@ -310,10 +310,10 @@ function positionPlanets(
             const orbitInclination = (rng() - 0.5) * 0.08; // ±0.04 radians — very tight, coplanar orbits
             const orbitSpeed = 0.1 + rng() * 0.3;
 
-            // Planet size — small relative to suns for realism
+            // Planet size — visible but proportional to suns
             const radius = Math.max(
-                0.08,
-                Math.min(0.35, Math.cbrt(file.totalLinesOfCode) * 0.035)
+                0.15,
+                Math.min(0.6, Math.cbrt(file.totalLinesOfCode) * 0.055)
             );
 
             // Position on orbit
