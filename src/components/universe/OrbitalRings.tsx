@@ -1,11 +1,9 @@
 /**
  * Orbital Rings Component
  *
- * Renders visible orbital paths (ellipses) around each developer sun.
- * When the camera zooms into a solar-system view, orbit rings become
- * prominent with a subtle animated glow and dashed-line style.
- *
- * Each ring corresponds to a distinct orbit radius where planets travel.
+ * Renders visible orbital paths around developer suns.
+ * These are faint dotted circles that suggest orbital mechanics
+ * without being visually dominant.
  */
 
 "use client";
@@ -22,11 +20,10 @@ interface OrbitalRingsProps {
     developers: Map<string, SpatialDeveloper>;
 }
 
-// Generate points for an inclined elliptical orbit
 function generateOrbitPoints(
     radius: number,
     inclination: number,
-    segments: number = 128
+    segments: number = 96
 ): THREE.Vector3[] {
     const points: THREE.Vector3[] = [];
     for (let i = 0; i <= segments; i++) {
@@ -43,7 +40,7 @@ function generateOrbitPoints(
 export default function OrbitalRings({ planets, developers }: OrbitalRingsProps) {
     const groupRef = useRef<THREE.Group>(null);
     const { selectedDeveloperId, viewLevel } = useUniverseStore();
-    // Group planets by owner and deduce distinct orbit radii + inclinations
+
     const ringData = useMemo(() => {
         const ownerPlanets = new Map<string, SpatialPlanet[]>();
         for (const p of planets) {
@@ -64,10 +61,9 @@ export default function OrbitalRings({ planets, developers }: OrbitalRingsProps)
             const dev = developers.get(ownerId);
             if (!dev) continue;
 
-            // Collect unique orbit radii (quantized to reduce ring count)
-            const radiusSet = new Map<number, number>(); // quantized radius -> inclination
+            const radiusSet = new Map<number, number>();
             for (const p of ownerPlanets_) {
-                const quantized = Math.round(p.orbitRadius * 4) / 4; // 0.25 step
+                const quantized = Math.round(p.orbitRadius * 4) / 4;
                 if (!radiusSet.has(quantized)) {
                     radiusSet.set(quantized, p.orbitInclination);
                 }
@@ -93,23 +89,23 @@ export default function OrbitalRings({ planets, developers }: OrbitalRingsProps)
     return (
         <group ref={groupRef}>
             {ringData.map((ring, i) => {
-                const stellarColor = getStellarColor(ring.stellarType as StellarType);
                 const isOwnerSelected = selectedDeveloperId === ring.ownerId;
                 const isSolarView = viewLevel === "solar-system";
 
-                const baseOpacity = isOwnerSelected && isSolarView ? 0.5 : 0.12;
+                // Very faint by default, slightly brighter when focused
+                const opacity = isOwnerSelected && isSolarView ? 0.15 : 0.04;
                 const color = isOwnerSelected
-                    ? stellarColor.coreThree
-                    : new THREE.Color(0.4, 0.5, 0.7);
+                    ? getStellarColor(ring.stellarType as StellarType).coronaThree
+                    : new THREE.Color(0.3, 0.35, 0.45);
 
                 return (
                     <group key={`${ring.ownerId}-${ring.orbitRadius}-${i}`} position={ring.ownerPosition}>
                         <Line
                             points={ring.points}
                             color={color}
-                            lineWidth={isOwnerSelected && isSolarView ? 1.2 : 0.5}
+                            lineWidth={0.3}
                             transparent
-                            opacity={baseOpacity}
+                            opacity={opacity}
                             depthWrite={false}
                         />
                     </group>

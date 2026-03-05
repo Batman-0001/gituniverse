@@ -1,8 +1,11 @@
 /**
  * Color Utilities for Stellar Visualization
  *
- * Maps developer stellar types to physically-inspired color temperatures
- * and provides utility functions for color manipulation in 3D space.
+ * Maps developer stellar types to physically-inspired color temperatures.
+ * Refined for realistic, non-cartoonish rendering:
+ * - Lower emissive intensities for natural star appearance
+ * - Muted corona colors so bloom doesn't overpower
+ * - Subtle edge colors that blend into the scene
  */
 
 import * as THREE from "three";
@@ -28,47 +31,47 @@ interface StellarColorConfig {
 
 const STELLAR_COLORS: Record<StellarType, StellarColorConfig> = {
     blue_giant: {
-        core: "#ffb300",
-        corona: "#ff8f00",
-        coreThree: new THREE.Color("#ffb300"),
-        coronaThree: new THREE.Color("#ff8f00"),
-        emissiveIntensity: 2.5,
-        pulseSpeed: 3.0,
-        label: "Solar Giant",
+        core: "#aad4ff",
+        corona: "#6baeff",
+        coreThree: new THREE.Color("#aad4ff"),
+        coronaThree: new THREE.Color("#6baeff"),
+        emissiveIntensity: 0.8,
+        pulseSpeed: 2.5,
+        label: "Blue Giant",
     },
     yellow_sun: {
-        core: "#ffd700",
-        corona: "#ff8c00",
-        coreThree: new THREE.Color("#ffd700"),
-        coronaThree: new THREE.Color("#ff8c00"),
-        emissiveIntensity: 2.0,
-        pulseSpeed: 2.0,
+        core: "#fff4d6",
+        corona: "#ffd27a",
+        coreThree: new THREE.Color("#fff4d6"),
+        coronaThree: new THREE.Color("#ffd27a"),
+        emissiveIntensity: 0.7,
+        pulseSpeed: 1.8,
         label: "Yellow Sun",
     },
     orange_dwarf: {
-        core: "#ffb74d",
-        corona: "#e65100",
-        coreThree: new THREE.Color("#ffb74d"),
-        coronaThree: new THREE.Color("#e65100"),
-        emissiveIntensity: 1.5,
-        pulseSpeed: 1.5,
+        core: "#ffc495",
+        corona: "#e8854a",
+        coreThree: new THREE.Color("#ffc495"),
+        coronaThree: new THREE.Color("#e8854a"),
+        emissiveIntensity: 0.6,
+        pulseSpeed: 1.4,
         label: "Orange Dwarf",
     },
     red_giant: {
-        core: "#ef5350",
-        corona: "#b71c1c",
-        coreThree: new THREE.Color("#ef5350"),
-        coronaThree: new THREE.Color("#b71c1c"),
-        emissiveIntensity: 3.0,
-        pulseSpeed: 1.0,
+        core: "#ff9e8a",
+        corona: "#cc4433",
+        coreThree: new THREE.Color("#ff9e8a"),
+        coronaThree: new THREE.Color("#cc4433"),
+        emissiveIntensity: 0.9,
+        pulseSpeed: 0.9,
         label: "Red Giant",
     },
     white_dwarf: {
-        core: "#b0bec5",
-        corona: "#546e7a",
-        coreThree: new THREE.Color("#cfd8dc"),
-        coronaThree: new THREE.Color("#78909c"),
-        emissiveIntensity: 0.5,
+        core: "#d8e0e6",
+        corona: "#8a9aaa",
+        coreThree: new THREE.Color("#d8e0e6"),
+        coronaThree: new THREE.Color("#8a9aaa"),
+        emissiveIntensity: 0.25,
         pulseSpeed: 0.3,
         label: "White Dwarf",
     },
@@ -150,9 +153,9 @@ export function getGalaxyColor(hue: number): {
     secondary: THREE.Color;
     css: string;
 } {
-    const primary = new THREE.Color().setHSL(hue / 360, 0.6, 0.5);
-    const secondary = new THREE.Color().setHSL(((hue + 30) % 360) / 360, 0.4, 0.3);
-    const css = `hsl(${hue}, 60%, 50%)`;
+    const primary = new THREE.Color().setHSL(hue / 360, 0.35, 0.35);
+    const secondary = new THREE.Color().setHSL(((hue + 30) % 360) / 360, 0.25, 0.25);
+    const css = `hsl(${hue}, 35%, 35%)`;
 
     return { primary, secondary, css };
 }
@@ -165,13 +168,20 @@ export function getEdgeColor(
     isBinary: boolean
 ): THREE.Color {
     if (isBinary) {
-        return new THREE.Color("#e040fb");
+        // Muted lavender instead of blazing magenta
+        return new THREE.Color("#9c7cb0");
     }
 
-    const colorA = STELLAR_COLORS[typeA]?.coreThree || new THREE.Color("#4fc3f7");
-    const colorB = STELLAR_COLORS[typeB]?.coreThree || new THREE.Color("#4fc3f7");
+    const colorA = STELLAR_COLORS[typeA]?.coronaThree || new THREE.Color("#5588aa");
+    const colorB = STELLAR_COLORS[typeB]?.coronaThree || new THREE.Color("#5588aa");
 
-    return new THREE.Color().lerpColors(colorA, colorB, 0.5);
+    // Blend and desaturate slightly
+    const blended = new THREE.Color().lerpColors(colorA, colorB, 0.5);
+    const hsl = { h: 0, s: 0, l: 0 };
+    blended.getHSL(hsl);
+    blended.setHSL(hsl.h, hsl.s * 0.5, hsl.l * 0.7);
+
+    return blended;
 }
 
 // ─── Utility ─────────────────────────────────────────────────────────────────

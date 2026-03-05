@@ -138,8 +138,8 @@ function positionGalaxies(
             radius * Math.cos(phi)
         );
 
-        // Galaxy visual radius based on file count
-        const visualRadius = Math.max(8, Math.sqrt(galaxy.totalFiles) * 2);
+        // Galaxy visual radius — subtle, not overpowering
+        const visualRadius = Math.max(4, Math.sqrt(galaxy.totalFiles) * 0.9);
 
         return {
             id: galaxy._id,
@@ -211,7 +211,7 @@ function positionDevelopers(
                 galaxy.position.z + r * Math.sin(theta)
             );
 
-            const radius = Math.max(0.5, Math.cbrt(dev.normalizedMass) * 0.4);
+            const radius = Math.max(0.35, Math.cbrt(dev.normalizedMass) * 0.25);
 
             spatialDevelopers.push({
                 id: dev._id,
@@ -244,7 +244,7 @@ function positionDevelopers(
             r * Math.sin(angle)
         );
 
-        const radius = Math.max(0.5, Math.cbrt(dev.normalizedMass) * 0.4);
+        const radius = Math.max(0.35, Math.cbrt(dev.normalizedMass) * 0.25);
 
         spatialDevelopers.push({
             id: dev._id,
@@ -310,10 +310,10 @@ function positionPlanets(
             const orbitInclination = (rng() - 0.5) * 0.08; // ±0.04 radians — very tight, coplanar orbits
             const orbitSpeed = 0.1 + rng() * 0.3;
 
-            // Planet size based on lines of code (capped)
+            // Planet size — small relative to suns for realism
             const radius = Math.max(
-                0.25,
-                Math.min(1.2, Math.cbrt(file.totalLinesOfCode) * 0.08)
+                0.08,
+                Math.min(0.35, Math.cbrt(file.totalLinesOfCode) * 0.035)
             );
 
             // Position on orbit

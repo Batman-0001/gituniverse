@@ -93,61 +93,146 @@ body {
 /* ── Star Background Animation ──────────────────────────────── */
 
 @keyframes twinkle {
-  0%, 100% { opacity: 0.3; }
-  50% { opacity: 1; }
+
+  0%,
+  100% {
+    opacity: 0.3;
+  }
+
+  50% {
+    opacity: 1;
+  }
 }
 
 @keyframes float {
-  0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-10px); }
+
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+
+  50% {
+    transform: translateY(-10px);
+  }
 }
 
 @keyframes pulseGlow {
-  0%, 100% { box-shadow: 0 0 20px rgba(79, 195, 247, 0.3); }
-  50% { box-shadow: 0 0 40px rgba(79, 195, 247, 0.6), 0 0 60px rgba(79, 195, 247, 0.3); }
+
+  0%,
+  100% {
+    box-shadow: 0 0 20px rgba(79, 195, 247, 0.3);
+  }
+
+  50% {
+    box-shadow: 0 0 40px rgba(79, 195, 247, 0.6), 0 0 60px rgba(79, 195, 247, 0.3);
+  }
 }
 
 @keyframes spin-slow {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @keyframes nebulaDrift {
-  0% { transform: translate(0, 0) scale(1); opacity: 0.3; }
-  33% { transform: translate(30px, -20px) scale(1.1); opacity: 0.5; }
-  66% { transform: translate(-20px, 10px) scale(0.95); opacity: 0.35; }
-  100% { transform: translate(0, 0) scale(1); opacity: 0.3; }
+  0% {
+    transform: translate(0, 0) scale(1);
+    opacity: 0.3;
+  }
+
+  33% {
+    transform: translate(30px, -20px) scale(1.1);
+    opacity: 0.5;
+  }
+
+  66% {
+    transform: translate(-20px, 10px) scale(0.95);
+    opacity: 0.35;
+  }
+
+  100% {
+    transform: translate(0, 0) scale(1);
+    opacity: 0.3;
+  }
 }
 
 @keyframes slideUp {
-  from { opacity: 0; transform: translateY(30px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes slideIn {
-  from { opacity: 0; transform: translateX(-20px); }
-  to { opacity: 1; transform: translateX(0); }
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes progressShimmer {
-  0% { background-position: -200% center; }
-  100% { background-position: 200% center; }
+  0% {
+    background-position: -200% center;
+  }
+
+  100% {
+    background-position: 200% center;
+  }
 }
 
 @keyframes orbitPulse {
-  0%, 100% { transform: scale(1); opacity: 0.6; }
-  50% { transform: scale(1.05); opacity: 1; }
+
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.6;
+  }
+
+  50% {
+    transform: scale(1.05);
+    opacity: 1;
+  }
 }
 
 @keyframes supernovaExpand {
-  0% { transform: scale(0); opacity: 1; }
-  50% { transform: scale(1.5); opacity: 0.8; }
-  100% { transform: scale(2); opacity: 0; }
+  0% {
+    transform: scale(0);
+    opacity: 1;
+  }
+
+  50% {
+    transform: scale(1.5);
+    opacity: 0.8;
+  }
+
+  100% {
+    transform: scale(2);
+    opacity: 0;
+  }
 }
 
 /* ── Glass Morphism ─────────────────────────────────────────── */
@@ -194,4 +279,68 @@ body {
 .border-glow-purple {
   border: 1px solid rgba(108, 52, 131, 0.4);
   box-shadow: 0 0 15px rgba(108, 52, 131, 0.15), inset 0 0 15px rgba(108, 52, 131, 0.05);
+}
+
+/* ── Bus Factor Warning Pulse ──────────────────────────── */
+
+@keyframes busFactorPulse {
+
+  0%,
+  100% {
+    box-shadow: 0 0 8px rgba(255, 23, 68, 0.3);
+  }
+
+  50% {
+    box-shadow: 0 0 20px rgba(255, 23, 68, 0.6), 0 0 40px rgba(255, 23, 68, 0.3);
+  }
+}
+
+@keyframes eventMarkerPulse {
+
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.7;
+  }
+
+  50% {
+    transform: scale(1.3);
+    opacity: 1;
+  }
+}
+
+/* ── Nebula Shimmer ─────────────────────────────────────── */
+
+@keyframes nebulaShimmer {
+  0% {
+    opacity: 0.3;
+    filter: hue-rotate(0deg);
+  }
+
+  50% {
+    opacity: 0.5;
+    filter: hue-rotate(15deg);
+  }
+
+  100% {
+    opacity: 0.3;
+    filter: hue-rotate(0deg);
+  }
+}
+
+/* ── Panel Hover Effects ────────────────────────────────── */
+
+.panel-item-hover:hover {
+  background: rgba(79, 195, 247, 0.06) !important;
+  border-color: rgba(79, 195, 247, 0.15) !important;
+}
+
+/* ── Mono Labels ────────────────────────────────────────── */
+
+.label-mono {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.3);
 }
