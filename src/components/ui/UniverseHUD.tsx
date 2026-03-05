@@ -5,6 +5,9 @@
  * - Repository name and stats bar (top)
  * - View controls and toggle panel (top-right)
  * - Developer list sidebar (left, collapsible)
+ * - Developer detail panel (right, when a star is selected)
+ * - Galaxy detail panel (right, when a nebula is selected)
+ * - Universe legend (bottom-left, collapsible)
  * - Event timeline mini (bottom)
  * - Back / reset buttons
  */
@@ -33,6 +36,8 @@ import {
 } from "lucide-react";
 import { useUniverseStore } from "@/stores/universe-store";
 import DeveloperPanel from "@/components/ui/DeveloperPanel";
+import GalaxyPanel from "@/components/ui/GalaxyPanel";
+import UniverseLegend from "@/components/ui/UniverseLegend";
 
 // ─── Stellar type display configs ────────────────────────────────────────────
 
@@ -59,6 +64,7 @@ export default function UniverseHUD() {
         spatialData,
         viewLevel,
         selectedDeveloperId,
+        selectedGalaxyId,
         showEdges,
         showPlanets,
         showNebulae,
@@ -78,6 +84,10 @@ export default function UniverseHUD() {
     const selectedDev = spatialData?.developers.find(
         (d) => d.id === selectedDeveloperId
     );
+
+    const viewLevelLabel = viewLevel === "solar-system"
+        ? "Solar System"
+        : viewLevel.charAt(0).toUpperCase() + viewLevel.slice(1);
 
     return (
         <div
@@ -152,7 +162,7 @@ export default function UniverseHUD() {
                             fontWeight: 600,
                         }}
                     >
-                        {viewLevel.replace("-", " ")}
+                        {viewLevelLabel}
                     </span>
                 </div>
 
@@ -360,6 +370,16 @@ export default function UniverseHUD() {
                 )}
             </AnimatePresence>
 
+            {/* ── Galaxy Detail Panel (Right) ───────────────────── */}
+            <AnimatePresence>
+                {selectedGalaxyId && !selectedDev && (
+                    <GalaxyPanel />
+                )}
+            </AnimatePresence>
+
+            {/* ── Universe Legend (Bottom-Left) ─────────────────── */}
+            <UniverseLegend />
+
             {/* ── Bottom Status Bar ─────────────────────────────── */}
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
@@ -380,10 +400,10 @@ export default function UniverseHUD() {
                     color: "rgba(255,255,255,0.35)",
                 }}
             >
-                <span>🖱️ Click star to focus · Scroll to zoom · Drag to rotate</span>
+                <span>Click star to focus · Scroll to zoom · Drag to rotate</span>
                 <span>·</span>
                 <span>
-                    {stats.totalFiles} planets · {stats.totalEdges} orbital intersections · {stats.totalEvents} temporal events
+                    {stats.totalFiles} planets · {stats.totalEdges} edges · {stats.totalEvents} events
                 </span>
             </motion.div>
         </div>

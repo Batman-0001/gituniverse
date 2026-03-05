@@ -465,7 +465,7 @@ export default function Planet({
             fragmentShader: ATMO_FRAGMENT,
             uniforms: {
                 uAtmoColor: { value: visual.atmoColor },
-                uAtmoIntensity: { value: visual.atmoIntensity * 0.35 },
+                uAtmoIntensity: { value: visual.atmoIntensity * 0.2 },
             },
             transparent: true,
             depthWrite: false,
@@ -521,15 +521,15 @@ export default function Planet({
                 onPointerOver={handlePointerOver}
                 onPointerOut={handlePointerOut}
             >
-                <sphereGeometry args={[1, 48, 48]} />
+                <sphereGeometry args={[1, 32, 32]} />
             </mesh>
 
             {/* Atmosphere rim glow */}
             <mesh
                 material={atmoMaterial}
-                scale={radius * 1.06}
+                scale={radius * 1.04}
             >
-                <sphereGeometry args={[1, 32, 32]} />
+                <sphereGeometry args={[1, 24, 24]} />
             </mesh>
 
             {/* Saturn-like ring for heavily-modified files */}
@@ -543,7 +543,7 @@ export default function Planet({
                     <meshBasicMaterial
                         color={visual.atmoColor}
                         transparent
-                        opacity={0.4}
+                        opacity={0.15}
                         side={THREE.DoubleSide}
                         depthWrite={false}
                     />

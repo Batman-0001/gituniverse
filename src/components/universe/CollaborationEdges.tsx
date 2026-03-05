@@ -1,12 +1,14 @@
 /**
  * Collaboration Edge Renderer
  *
- * Renders weighted edges between developer pairs:
- * - Standard edges: animated bezier curves, thickness = collaboration weight
- * - Binary star edges: highlighted purple with particle flow
- * - Color: blend of both developer colors
- * - Opacity decays with inactivity
- * - Only visible above a threshold zoom level
+ * Renders connections between collaborating developers.
+ *
+ * Design philosophy:
+ * - Edges should be barely visible threads — not thick neon lines.
+ * - They suggest connections, not demand attention.
+ * - Binary star edges are slightly more visible but still subtle.
+ * - No particle flow (it was adding visual noise). Instead, edges
+ *   have a gentle opacity pulse to suggest energy flow.
  */
 
 "use client";
@@ -29,22 +31,19 @@ export default function CollaborationEdges({
 }: CollaborationEdgesProps) {
     const groupRef = useRef<THREE.Group>(null);
 
-    // Generate curve geometries
     const edgeData = useMemo(() => {
         return edges.map((edge) => {
             const source = developers.get(edge.sourceId);
             const target = developers.get(edge.targetId);
             if (!source || !target) return null;
 
-            // Create quadratic bezier curve with midpoint lifted
+            // Gentle upward arc
             const mid = new THREE.Vector3()
                 .addVectors(edge.sourcePosition, edge.targetPosition)
                 .multiplyScalar(0.5);
-
-            // Lift the midpoint perpendicular to the edge
             const direction = new THREE.Vector3()
                 .subVectors(edge.targetPosition, edge.sourcePosition);
-            const lift = Math.min(direction.length() * 0.2, 8);
+            const lift = Math.min(direction.length() * 0.12, 4);
             mid.y += lift;
 
             const curve = new THREE.QuadraticBezierCurve3(
@@ -59,36 +58,23 @@ export default function CollaborationEdges({
                 edge.isBinaryStar
             );
 
-            // Thickness based on weight (normalized)
-            const maxWeight = Math.max(...edges.map((e) => e.weight), 1);
-            const thickness = edge.isBinaryStar
-                ? 0.15
-                : 0.03 + (edge.weight / maxWeight) * 0.1;
-
-            const points = curve.getPoints(32);
-            const geometry = new THREE.BufferGeometry().setFromPoints(points);
+            const points = curve.getPoints(24);
 
             return {
                 edge,
-                curve,
-                geometry,
                 color,
-                thickness,
                 isBinary: edge.isBinaryStar,
                 points,
             };
         }).filter(Boolean) as Array<{
             edge: SpatialEdge;
-            curve: THREE.QuadraticBezierCurve3;
-            geometry: THREE.BufferGeometry;
             color: THREE.Color;
-            thickness: number;
             isBinary: boolean;
             points: THREE.Vector3[];
         }>;
     }, [edges, developers]);
 
-    // Animate edge opacity pulse
+    // Gentle opacity pulse
     useFrame(({ clock }) => {
         if (!groupRef.current) return;
         const time = clock.getElapsedTime();
@@ -96,13 +82,11 @@ export default function CollaborationEdges({
         groupRef.current.children.forEach((child, i) => {
             if (i >= edgeData.length) return;
             const data = edgeData[i];
-            // Line2 material uses different property access
-            const mesh = child as THREE.Mesh;
-            if (mesh.material && "opacity" in mesh.material) {
-                const mat = mesh.material as THREE.Material;
-                const pulse = data.isBinary
-                    ? Math.sin(time * 3) * 0.2 + 0.7
-                    : Math.sin(time * 0.5 + i) * 0.1 + 0.4;
+            const line = child as unknown as { material?: THREE.Material };
+            if (line.material && "opacity" in line.material) {
+                const mat = line.material as THREE.Material;
+                const baseOpacity = data.isBinary ? 0.18 : 0.07;
+                const pulse = Math.sin(time * 0.4 + i * 0.8) * 0.03 + baseOpacity;
                 mat.opacity = pulse;
             }
         });
@@ -117,9 +101,9 @@ export default function CollaborationEdges({
                     key={data.edge.id}
                     points={data.points}
                     color={data.color}
-                    lineWidth={data.isBinary ? 2.0 : 0.8}
+                    lineWidth={data.isBinary ? 1.0 : 0.5}
                     transparent
-                    opacity={data.isBinary ? 0.7 : 0.35}
+                    opacity={data.isBinary ? 0.18 : 0.07}
                     depthWrite={false}
                 />
             ))}
