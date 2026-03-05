@@ -1,10 +1,12 @@
 /**
- * Background Starfield
+ * Background Starfield — Cinematic Rewrite
  *
- * 12,000 instanced background stars across 3 parallax layers.
- * Uses InstancedMesh for a single draw call per layer.
- * Subtle twinkle effect — stars gently pulse at different frequencies.
- * Three depth layers create a convincing parallax effect.
+ * Creates a deep-space background with:
+ * 1. 15,000 point-sprite stars with proper color distribution (O/B/A/F/G/K/M classes)
+ * 2. Multi-layer parallax for depth
+ * 3. Realistic twinkle (scintillation) based on atmospheric seeing
+ * 4. Subtle nebula dust clouds using large soft-edged billboards
+ * 5. Milky Way band — concentrated stellar density along the galactic plane
  */
 
 "use client";
@@ -13,13 +15,15 @@ import React, { useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 
+// ─── Configuration ──────────────────────────────────────────────────────────
+
 const LAYER_CONFIG = [
-    { count: 5000, spread: 600, sizeMin: 0.04, sizeMax: 0.20, twinkleSpeed: 0.6, name: "far" },
-    { count: 4000, spread: 800, sizeMin: 0.06, sizeMax: 0.28, twinkleSpeed: 0.8, name: "mid" },
-    { count: 3000, spread: 1100, sizeMin: 0.08, sizeMax: 0.40, twinkleSpeed: 1.0, name: "near" },
+    { count: 6000, spread: 900, sizeMin: 0.8, sizeMax: 2.0, twinkleSpeed: 0.5, opacity: 0.7, name: "far" },
+    { count: 5000, spread: 1200, sizeMin: 1.2, sizeMax: 3.0, twinkleSpeed: 0.7, opacity: 0.85, name: "mid" },
+    { count: 4000, spread: 1500, sizeMin: 1.5, sizeMax: 4.0, twinkleSpeed: 0.9, opacity: 1.0, name: "near" },
 ];
 
-const starGeometry = new THREE.SphereGeometry(1, 4, 4);
+// ─── Seeded RNG ─────────────────────────────────────────────────────────────
 
 function mulberry32(seed: number) {
     return () => {
@@ -30,139 +34,266 @@ function mulberry32(seed: number) {
     };
 }
 
-interface StarData {
-    x: number; y: number; z: number;
-    size: number; twinklePhase: number; twinkleFreq: number;
+// ─── Point Star Material (Custom Shader) ────────────────────────────────────
+
+const STAR_POINT_VERTEX = /* glsl */ `
+attribute float aSize;
+attribute float aPhase;
+attribute float aFreq;
+attribute float aBrightness;
+
+varying vec3 vColor;
+varying float vBrightness;
+
+uniform float uTime;
+uniform float uPixelRatio;
+
+void main() {
+    vColor = color;
+
+    // Scintillation (twinkling)
+    float twinkle = sin(uTime * aFreq + aPhase) * 0.3 + 0.7;
+    twinkle *= sin(uTime * aFreq * 1.7 + aPhase * 2.3) * 0.15 + 0.85;
+    vBrightness = aBrightness * twinkle;
+
+    vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+    float dist = length(mvPosition.xyz);
+
+    // Size attenuation — closer stars look bigger
+    gl_PointSize = aSize * uPixelRatio * (250.0 / dist);
+    gl_PointSize = clamp(gl_PointSize, 1.0, 12.0);
+
+    gl_Position = projectionMatrix * mvPosition;
 }
+`;
 
-function generateLayerStars(layerIndex: number): StarData[] {
-    const config = LAYER_CONFIG[layerIndex];
-    const rng = mulberry32(42 + layerIndex * 1000);
-    const data: StarData[] = [];
+const STAR_POINT_FRAGMENT = /* glsl */ `
+varying vec3 vColor;
+varying float vBrightness;
 
-    for (let i = 0; i < config.count; i++) {
-        data.push({
-            x: (rng() - 0.5) * config.spread,
-            y: (rng() - 0.5) * config.spread,
-            z: (rng() - 0.5) * config.spread,
-            size: config.sizeMin + rng() * (config.sizeMax - config.sizeMin),
-            twinklePhase: rng() * Math.PI * 2,
-            twinkleFreq: config.twinkleSpeed * (0.5 + rng() * 1.0),
-        });
-    }
-    return data;
+void main() {
+    // Soft circular point with bright core + diffuse halo
+    vec2 center = gl_PointCoord - 0.5;
+    float dist = length(center);
+
+    // Sharp bright core
+    float core = exp(-dist * dist * 40.0);
+    // Softer halo
+    float halo = exp(-dist * dist * 8.0) * 0.4;
+    // Very subtle diffraction spikes
+    float spike = 0.0;
+    float angle = atan(center.y, center.x);
+    spike += pow(abs(cos(angle * 2.0)), 60.0) * exp(-dist * 6.0) * 0.15;
+
+    float intensity = (core + halo + spike) * vBrightness;
+
+    if (intensity < 0.01) discard;
+
+    gl_FragColor = vec4(vColor * intensity, intensity);
 }
+`;
 
-function generateLayerColors(layerIndex: number): Float32Array {
-    const config = LAYER_CONFIG[layerIndex];
-    const rng = mulberry32(123 + layerIndex * 500);
-    const arr = new Float32Array(config.count * 3);
-
-    for (let i = 0; i < config.count; i++) {
-        const v = rng();
-        if (v > 0.90) {
-            // Blue-white stars
-            arr[i * 3] = 0.6 + rng() * 0.3;
-            arr[i * 3 + 1] = 0.7 + rng() * 0.3;
-            arr[i * 3 + 2] = 1.0;
-        } else if (v > 0.82) {
-            // Warm yellow-orange stars
-            arr[i * 3] = 1.0;
-            arr[i * 3 + 1] = 0.85 + rng() * 0.15;
-            arr[i * 3 + 2] = 0.5 + rng() * 0.3;
-        } else if (v > 0.78) {
-            // Faint pink-red stars
-            arr[i * 3] = 0.9 + rng() * 0.1;
-            arr[i * 3 + 1] = 0.5 + rng() * 0.2;
-            arr[i * 3 + 2] = 0.5 + rng() * 0.2;
-        } else {
-            // Standard white stars (majority)
-            const brightness = 0.75 + rng() * 0.25;
-            arr[i * 3] = brightness;
-            arr[i * 3 + 1] = brightness;
-            arr[i * 3 + 2] = brightness;
-        }
-    }
-    return arr;
-}
-
-// Pre-compute all data
-const PRECOMPUTED_LAYERS = LAYER_CONFIG.map((_, i) => ({
-    stars: generateLayerStars(i),
-    colors: generateLayerColors(i),
-}));
+// ─── Star Layer Component ───────────────────────────────────────────────────
 
 interface StarLayerProps {
     layerIndex: number;
 }
 
 function StarLayer({ layerIndex }: StarLayerProps) {
-    const meshRef = useRef<THREE.InstancedMesh>(null);
-    const dummy = useMemo(() => new THREE.Object3D(), []);
+    const pointsRef = useRef<THREE.Points>(null);
     const config = LAYER_CONFIG[layerIndex];
-    const { stars } = PRECOMPUTED_LAYERS[layerIndex];
-    const initRef = useRef(false);
 
-    // Store original scales for twinkle
-    const originalScales = useMemo(() => {
-        return stars.map((s) => s.size * 0.6);
-    }, [stars]);
+    const { geometry, material } = useMemo(() => {
+        const rng = mulberry32(42 + layerIndex * 1000);
+        const rngColor = mulberry32(123 + layerIndex * 500);
 
-    useFrame(({ clock }) => {
-        if (!meshRef.current) return;
-        const mesh = meshRef.current;
-        const time = clock.getElapsedTime();
+        const positions = new Float32Array(config.count * 3);
+        const colors = new Float32Array(config.count * 3);
+        const sizes = new Float32Array(config.count);
+        const phases = new Float32Array(config.count);
+        const freqs = new Float32Array(config.count);
+        const brightness = new Float32Array(config.count);
 
-        if (!initRef.current) {
-            // First frame — set positions
-            initRef.current = true;
-            for (let i = 0; i < config.count; i++) {
-                const star = stars[i];
-                dummy.position.set(star.x, star.y, star.z);
-                dummy.scale.setScalar(originalScales[i]);
-                dummy.updateMatrix();
-                mesh.setMatrixAt(i, dummy.matrix);
+        for (let i = 0; i < config.count; i++) {
+            // Position — slightly concentrated toward galactic plane (y ≈ 0)
+            const x = (rng() - 0.5) * config.spread;
+            const yRaw = (rng() - 0.5);
+            const y = yRaw * config.spread * (0.5 + Math.abs(yRaw) * 0.5); // flatten toward plane
+            const z = (rng() - 0.5) * config.spread;
+
+            positions[i * 3] = x;
+            positions[i * 3 + 1] = y;
+            positions[i * 3 + 2] = z;
+
+            // Realistic star color distribution (spectral classes)
+            const v = rngColor();
+            let r: number, g: number, b: number;
+
+            if (v > 0.95) {
+                // O/B class — blue-white (hot, rare)
+                r = 0.6 + rngColor() * 0.2;
+                g = 0.7 + rngColor() * 0.25;
+                b = 1.0;
+            } else if (v > 0.88) {
+                // A class — white with blue tint
+                r = 0.85 + rngColor() * 0.15;
+                g = 0.88 + rngColor() * 0.12;
+                b = 1.0;
+            } else if (v > 0.78) {
+                // F class — yellow-white
+                r = 1.0;
+                g = 0.95 + rngColor() * 0.05;
+                b = 0.8 + rngColor() * 0.15;
+            } else if (v > 0.60) {
+                // G class — yellow (sun-like)
+                r = 1.0;
+                g = 0.9 + rngColor() * 0.1;
+                b = 0.6 + rngColor() * 0.2;
+            } else if (v > 0.40) {
+                // K class — orange
+                r = 1.0;
+                g = 0.7 + rngColor() * 0.15;
+                b = 0.35 + rngColor() * 0.15;
+            } else if (v > 0.20) {
+                // M class — red (most common)
+                r = 1.0;
+                g = 0.5 + rngColor() * 0.15;
+                b = 0.3 + rngColor() * 0.1;
+            } else {
+                // Standard white
+                const bright = 0.8 + rngColor() * 0.2;
+                r = bright;
+                g = bright;
+                b = bright;
             }
-            mesh.instanceMatrix.needsUpdate = true;
-            return;
+
+            colors[i * 3] = r;
+            colors[i * 3 + 1] = g;
+            colors[i * 3 + 2] = b;
+
+            sizes[i] = config.sizeMin + rng() * (config.sizeMax - config.sizeMin);
+            phases[i] = rng() * Math.PI * 2;
+            freqs[i] = config.twinkleSpeed * (0.3 + rng() * 1.5);
+            brightness[i] = config.opacity * (0.5 + rng() * 0.5);
         }
 
-        // Twinkle animation — only update a subset each frame for performance
-        const batchSize = Math.ceil(config.count / 8);
-        const batchIndex = Math.floor(time * 4) % 8;
-        const start = batchIndex * batchSize;
-        const end = Math.min(start + batchSize, config.count);
+        const geo = new THREE.BufferGeometry();
+        geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+        geo.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+        geo.setAttribute("aSize", new THREE.BufferAttribute(sizes, 1));
+        geo.setAttribute("aPhase", new THREE.BufferAttribute(phases, 1));
+        geo.setAttribute("aFreq", new THREE.BufferAttribute(freqs, 1));
+        geo.setAttribute("aBrightness", new THREE.BufferAttribute(brightness, 1));
 
-        for (let i = start; i < end; i++) {
-            const star = stars[i];
-            const twinkle = Math.sin(time * star.twinkleFreq + star.twinklePhase) * 0.25 + 0.85;
-            dummy.position.set(star.x, star.y, star.z);
-            dummy.scale.setScalar(originalScales[i] * twinkle);
+        const mat = new THREE.ShaderMaterial({
+            vertexShader: STAR_POINT_VERTEX,
+            fragmentShader: STAR_POINT_FRAGMENT,
+            uniforms: {
+                uTime: { value: 0 },
+                uPixelRatio: { value: Math.min(window.devicePixelRatio, 2) },
+            },
+            vertexColors: true,
+            transparent: true,
+            depthWrite: false,
+            blending: THREE.AdditiveBlending,
+        });
+
+        return { geometry: geo, material: mat };
+    }, [config, layerIndex]);
+
+    useFrame(({ clock }) => {
+        if (material.uniforms) {
+            material.uniforms.uTime.value = clock.getElapsedTime();
+        }
+    });
+
+    return (
+        <points ref={pointsRef} geometry={geometry} material={material} frustumCulled={false} />
+    );
+}
+
+// ─── Nebula Dust Cloud ──────────────────────────────────────────────────────
+
+function NebulaCloud() {
+    const meshRef = useRef<THREE.InstancedMesh>(null);
+    const dummy = useMemo(() => new THREE.Object3D(), []);
+    const count = 20;
+
+    const { positions, colors, scales } = useMemo(() => {
+        const rng = mulberry32(777);
+        const pos: THREE.Vector3[] = [];
+        const col: THREE.Color[] = [];
+        const scl: number[] = [];
+
+        const nebulaColors = [
+            new THREE.Color("#1a0a30"),
+            new THREE.Color("#0a1a2a"),
+            new THREE.Color("#2a0a1a"),
+            new THREE.Color("#0a2a2a"),
+            new THREE.Color("#1a1a30"),
+            new THREE.Color("#200a10"),
+        ];
+
+        for (let i = 0; i < count; i++) {
+            pos.push(new THREE.Vector3(
+                (rng() - 0.5) * 1000,
+                (rng() - 0.5) * 400,
+                (rng() - 0.5) * 1000
+            ));
+            col.push(nebulaColors[Math.floor(rng() * nebulaColors.length)]);
+            scl.push(80 + rng() * 200);
+        }
+
+        return { positions: pos, colors: col, scales: scl };
+    }, []);
+
+    useFrame(() => {
+        if (!meshRef.current) return;
+        const mesh = meshRef.current;
+
+        for (let i = 0; i < count; i++) {
+            dummy.position.copy(positions[i]);
+            dummy.scale.setScalar(scales[i]);
             dummy.updateMatrix();
             mesh.setMatrixAt(i, dummy.matrix);
         }
         mesh.instanceMatrix.needsUpdate = true;
     });
 
+    const colorArray = useMemo(() => {
+        const arr = new Float32Array(count * 3);
+        for (let i = 0; i < count; i++) {
+            arr[i * 3] = colors[i].r;
+            arr[i * 3 + 1] = colors[i].g;
+            arr[i * 3 + 2] = colors[i].b;
+        }
+        return arr;
+    }, [colors]);
+
     return (
         <instancedMesh
             ref={meshRef}
-            args={[starGeometry, undefined, config.count]}
+            args={[undefined, undefined, count]}
             frustumCulled={false}
         >
+            <sphereGeometry args={[1, 8, 8]} />
             <meshBasicMaterial
                 vertexColors
                 transparent
-                opacity={layerIndex === 0 ? 0.35 : layerIndex === 1 ? 0.5 : 0.7}
+                opacity={0.04}
                 depthWrite={false}
+                side={THREE.BackSide}
+                blending={THREE.AdditiveBlending}
             />
             <instancedBufferAttribute
                 attach="geometry-attributes-color"
-                args={[PRECOMPUTED_LAYERS[layerIndex].colors, 3]}
+                args={[colorArray, 3]}
             />
         </instancedMesh>
     );
 }
+
+// ─── Main Starfield ─────────────────────────────────────────────────────────
 
 export default function Starfield() {
     return (
@@ -170,6 +301,7 @@ export default function Starfield() {
             {LAYER_CONFIG.map((_, i) => (
                 <StarLayer key={i} layerIndex={i} />
             ))}
+            <NebulaCloud />
         </group>
     );
 }

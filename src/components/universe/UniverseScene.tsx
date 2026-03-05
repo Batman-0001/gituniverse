@@ -1,21 +1,26 @@
 /**
- * Universe Scene
+ * Universe Scene — Cinematic Rewrite
  *
- * Root scene composition with refined visual balance.
- *
- * Key design choices:
- * - Bloom at lower intensity (0.6) with higher threshold (0.5) so only
- *   the brightest star cores glow, not everything.
- * - Very dim ambient light — space should be DARK.
- * - No directional light — stars provide their own illumination via point lights.
- * - ACES filmic tone mapping for cinematic, natural color response.
+ * Root scene composition with cinematic visual quality:
+ * - Multi-pass bloom (selective luminance threshold)
+ * - Chromatic aberration for lens realism
+ * - Vignette for cinematic framing
+ * - ACES filmic tone mapping for natural colors
+ * - Enhanced scene lighting (warm side + cool fill)
  */
 
 "use client";
 
 import React, { useMemo, Suspense } from "react";
 import { Canvas } from "@react-three/fiber";
-import { EffectComposer, Bloom } from "@react-three/postprocessing";
+import {
+    EffectComposer,
+    Bloom,
+    ChromaticAberration,
+    Vignette,
+    ToneMapping,
+} from "@react-three/postprocessing";
+import { BlendFunction, ToneMappingMode } from "postprocessing";
 import * as THREE from "three";
 
 import Starfield from "./Starfield";
@@ -47,19 +52,19 @@ function SceneContent() {
 
     return (
         <>
-            {/* Extremely dim ambient — space is dark */}
-            <ambientLight intensity={0.015} color="#6080a0" />
+            {/* Deep space — very dim ambient (space is dark!) */}
+            <ambientLight intensity={0.008} color="#4060a0" />
 
             {/* Background starfield */}
             <Starfield />
 
-            {/* Galaxy nebulae — faint wisps */}
+            {/* Galaxy nebulae */}
             {showNebulae &&
                 spatialData.galaxies.map((galaxy) => (
                     <GalaxyNebula key={galaxy.id} galaxy={galaxy} />
                 ))}
 
-            {/* Developer suns */}
+            {/* Developer suns (plasma shader stars) */}
             {spatialData.developers.map((developer) => (
                 <DeveloperSun key={developer.id} developer={developer} />
             ))}
@@ -99,16 +104,33 @@ function SceneContent() {
             {/* Camera system */}
             <CameraController />
 
-            {/* Post-processing: selective bloom
-                - Higher threshold = only bright star cores glow
-                - Lower intensity = natural light scatter, not neon  */}
+            {/* ─── Post-processing pipeline ─── */}
             <EffectComposer multisampling={0}>
+                {/* Bloom: two-pass for realistic star glow */}
                 <Bloom
-                    luminanceThreshold={0.5}
-                    luminanceSmoothing={0.6}
-                    intensity={0.6}
+                    luminanceThreshold={0.3}
+                    luminanceSmoothing={0.9}
+                    intensity={0.8}
                     mipmapBlur
                 />
+
+                {/* Subtle chromatic aberration for lens realism */}
+                <ChromaticAberration
+                    blendFunction={BlendFunction.NORMAL}
+                    offset={new THREE.Vector2(0.0004, 0.0004)}
+                    radialModulation={true}
+                    modulationOffset={0.3}
+                />
+
+                {/* Cinematic vignette */}
+                <Vignette
+                    offset={0.3}
+                    darkness={0.6}
+                    blendFunction={BlendFunction.NORMAL}
+                />
+
+                {/* ACES filmic tone mapping */}
+                <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
             </EffectComposer>
         </>
     );
@@ -128,26 +150,26 @@ export default function UniverseScene({ className }: UniverseSceneProps) {
                 left: 0,
                 width: "100%",
                 height: "100%",
-                background: "#020108",
+                background: "#010008",
             }}
         >
             <Canvas
                 gl={{
                     antialias: true,
                     toneMapping: THREE.ACESFilmicToneMapping,
-                    toneMappingExposure: 0.9,
+                    toneMappingExposure: 1.0,
                     powerPreference: "high-performance",
                 }}
                 camera={{
-                    fov: 55,
+                    fov: 50,
                     near: 0.1,
-                    far: 3000,
-                    position: [0, 25, 150],
+                    far: 5000,
+                    position: [0, 100, 500],
                 }}
                 dpr={[1, 2]}
                 performance={{ min: 0.5 }}
                 onCreated={({ gl }) => {
-                    gl.setClearColor("#020108");
+                    gl.setClearColor("#010008");
                 }}
             >
                 <Suspense fallback={null}>

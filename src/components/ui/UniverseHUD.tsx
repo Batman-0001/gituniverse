@@ -298,6 +298,7 @@ export default function UniverseHUD() {
                             </div>
 
                             {spatialData?.developers
+                                .slice()
                                 .sort((a, b) => b.normalizedMass - a.normalizedMass)
                                 .map((dev) => {
                                     const config = stellarTypeConfig[dev.stellarType] || stellarTypeConfig.yellow_sun;
