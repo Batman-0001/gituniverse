@@ -16,7 +16,6 @@ import { Canvas, useFrame } from "@react-three/fiber";
 import {
   EffectComposer,
   Bloom,
-  ChromaticAberration,
   Vignette,
   ToneMapping,
 } from "@react-three/postprocessing";
@@ -142,14 +141,6 @@ function SceneContent() {
           luminanceSmoothing={0.9}
           intensity={0.8}
           mipmapBlur
-        />
-
-        {/* Subtle chromatic aberration for lens realism */}
-        <ChromaticAberration
-          blendFunction={BlendFunction.NORMAL}
-          offset={new THREE.Vector2(0.0004, 0.0004)}
-          radialModulation={true}
-          modulationOffset={0.3}
         />
 
         {/* Cinematic vignette */}
